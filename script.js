@@ -12,7 +12,12 @@ const firebaseConfig = {
 console.log('Firebase SDK loaded:', typeof firebase !== 'undefined' ? 'Yes' : 'No');
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+try {
+    firebase.initializeApp(firebaseConfig);
+    console.log('Firebase initialized successfully');
+} catch (error) {
+    console.error('Firebase initialization error:', error);
+}
 const database = firebase.database();
 
 const calendar = document.getElementById('calendar');
@@ -29,15 +34,26 @@ initializeCalendarData();
 listenForCalendarData();
 
 function listenForCalendarData() {
-    console.log('Listening for calendar data');
-    database.ref('calendarData').on('value', snapshot => {
-        console.log('Database snapshot:', snapshot.val());
-        calendarData = snapshot.val() || {};
-        generateCalendar(currentDate);
-    });
+    console.log('Setting up listener for calendar data');
+    try {
+        database.ref('calendarData').on('value', snapshot => {
+            console.log('Database snapshot received:', snapshot.val());
+            calendarData = snapshot.val() || {};
+            generateCalendar(currentDate);
+        }, error => {
+            console.error('Database listener error:', error);
+            calendar.innerHTML = '<p>Failed to load calendar data. Please try again later.</p>';
+            generateCalendar(currentDate); // Fallback: Render empty calendar
+        });
+    } catch (error) {
+        console.error('Error setting up database listener:', error);
+        calendar.innerHTML = '<p>Error connecting to database. Please try again later.</p>';
+        generateCalendar(currentDate); // Fallback: Render empty calendar
+    }
 }
 
 function getScheduledDays(month, item) {
+    console.log('Getting scheduled days for:', item, 'month:', month);
     const monthMod = month % 12;
     switch (item) {
         case 'Victoria AWA':
@@ -104,10 +120,12 @@ function getScheduledDays(month, item) {
     return [];
 }
 
-function initializeCalendarData() {
+function initializeCalendarData(attempt = 1, maxAttempts = 3) {
+    console.log(`Initializing calendar data, attempt ${attempt} of ${maxAttempts}`);
     database.ref('calendarData').once('value').then(snapshot => {
-        console.log('Initializing calendar data, snapshot exists:', snapshot.exists());
+        console.log('Snapshot exists:', snapshot.exists());
         if (!snapshot.exists()) {
+            console.log('No calendar data found, populating initial data');
             const year = currentDate.getFullYear();
             const items = ['Victoria AWA', 'Ivory AWA', 'Jasmine AWA', 'Rachel AWA'];
             let initialData = {};
@@ -158,14 +176,33 @@ function initializeCalendarData() {
                 }
             }
 
+            console.log('Setting initial data:', initialData);
             database.ref('calendarData').set(initialData).then(() => {
                 console.log('Initial data set successfully');
             }).catch(error => {
                 console.error('Error setting initial data:', error);
+                if (attempt < maxAttempts) {
+                    console.log(`Retrying initialization, attempt ${attempt + 1}`);
+                    setTimeout(() => initializeCalendarData(attempt + 1, maxAttempts), 2000);
+                } else {
+                    console.error('Max initialization attempts reached');
+                    calendar.innerHTML = '<p>Failed to initialize calendar data. Please try again later.</p>';
+                    generateCalendar(currentDate); // Fallback: Render empty calendar
+                }
             });
+        } else {
+            console.log('Calendar data already exists, skipping initialization');
         }
     }).catch(error => {
-        console.error('Error initializing calendar data:', error);
+        console.error('Error checking calendar data:', error);
+        if (attempt < maxAttempts) {
+            console.log(`Retrying initialization, attempt ${attempt + 1}`);
+            setTimeout(() => initializeCalendarData(attempt + 1, maxAttempts), 2000);
+        } else {
+            console.error('Max initialization attempts reached');
+            calendar.innerHTML = '<p>Failed to connect to database. Please try again later.</p>';
+            generateCalendar(currentDate); // Fallback: Render empty calendar
+        }
     });
 }
 
@@ -176,11 +213,13 @@ function generateCalendar(date) {
         const year = date.getFullYear();
         const month = date.getMonth();
         
+        console.log('Setting month/year header');
         monthYear.textContent = date.toLocaleString('default', { 
             month: 'long', 
             year: 'numeric' 
         });
 
+        console.log('Creating day headers');
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         days.forEach(day => {
             const dayHeader = document.createElement('div');
@@ -193,6 +232,7 @@ function generateCalendar(date) {
         const firstDayIndex = firstDayOfMonth.getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+        console.log('Rendering previous month days');
         const prevMonth = month === 0 ? 11 : month - 1;
         const prevYear = month === 0 ? year - 1 : year;
         const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
@@ -206,6 +246,7 @@ function generateCalendar(date) {
             
             const dateKey = day.dataset.date;
             if (calendarData[dateKey]) {
+                console.log(`Adding events for ${dateKey}:`, calendarData[dateKey]);
                 Object.keys(calendarData[dateKey]).forEach(itemText => {
                     const droppedItem = createDroppedItem(itemText);
                     day.appendChild(droppedItem);
@@ -217,6 +258,7 @@ function generateCalendar(date) {
             calendar.appendChild(day);
         }
 
+        console.log('Rendering current month days');
         for (let i = 1; i <= daysInMonth; i++) {
             const day = document.createElement('div');
             day.className = 'day';
@@ -225,6 +267,7 @@ function generateCalendar(date) {
             
             const dateKey = day.dataset.date;
             if (calendarData[dateKey]) {
+                console.log(`Adding events for ${dateKey}:`, calendarData[dateKey]);
                 Object.keys(calendarData[dateKey]).forEach(itemText => {
                     const droppedItem = createDroppedItem(itemText);
                     day.appendChild(droppedItem);
@@ -236,6 +279,7 @@ function generateCalendar(date) {
             calendar.appendChild(day);
         }
 
+        console.log('Rendering next month days');
         const totalCells = firstDayIndex + daysInMonth;
         const remainingCells = (7 - (totalCells % 7)) % 7;
         const nextMonthNum = month === 11 ? 0 : month + 1;
@@ -250,6 +294,7 @@ function generateCalendar(date) {
             
             const dateKey = day.dataset.date;
             if (calendarData[dateKey]) {
+                console.log(`Adding events for ${dateKey}:`, calendarData[dateKey]);
                 Object.keys(calendarData[dateKey]).forEach(itemText => {
                     const droppedItem = createDroppedItem(itemText);
                     day.appendChild(droppedItem);
@@ -260,13 +305,16 @@ function generateCalendar(date) {
             day.addEventListener('drop', handleDrop);
             calendar.appendChild(day);
         }
+
+        console.log('Calendar rendering complete');
     } catch (error) {
         console.error('Calendar generation error:', error);
-        calendar.innerHTML = '<p>Error loading calendar. Please try again later.</p>';
+        calendar.innerHTML = '<p>Error rendering calendar. Please try again later.</p>';
     }
 }
 
 function createDroppedItem(text) {
+    console.log('Creating dropped item:', text);
     const droppedItem = document.createElement('div');
     droppedItem.className = 'dropped-item';
     droppedItem.textContent = text;
@@ -277,68 +325,90 @@ function createDroppedItem(text) {
 }
 
 function handleDragStart(e) {
+    console.log('Drag start:', e.target.textContent);
     draggedElement = e.target;
     e.dataTransfer.setData('text/plain', e.target.textContent);
     e.target.classList.add('dragging');
 }
 
 function handleDragEnd(e) {
+    console.log('Drag end');
     e.target.classList.remove('dragging');
     draggedElement = null;
 }
 
 function handleDrop(e) {
     e.preventDefault();
+    console.log('Drop event');
     const data = e.dataTransfer.getData('text/plain');
     const targetDay = e.target.classList.contains('day') ? e.target : e.target.closest('.day');
-    if (!targetDay) return;
+    if (!targetDay) {
+        console.log('Drop target not a day');
+        return;
+    }
 
     const targetDate = targetDay.dataset.date;
+    console.log(`Dropping ${data} on ${targetDate}`);
 
     if (draggedElement.classList.contains('dropped-item')) {
         const originalDay = draggedElement.closest('.day');
         const originalDate = originalDay.dataset.date;
 
-        if (originalDate === targetDate) return;
+        if (originalDate === targetDate) {
+            console.log('Same date, ignoring drop');
+            return;
+        }
 
+        console.log(`Removing ${data} from ${originalDate}`);
         database.ref(`calendarData/${originalDate}/${data}`).remove();
     }
 
     const existingItems = targetDay.querySelectorAll('.dropped-item');
     for (let item of existingItems) {
-        if (item.textContent === data) return;
+        if (item.textContent === data) {
+            console.log(`${data} already exists on ${targetDate}`);
+            return;
+        }
     }
 
+    console.log(`Setting ${data} on ${targetDate}`);
     database.ref(`calendarData/${targetDate}/${data}`).set(true);
 }
 
 function handleDraggableAreaDrop(e) {
     e.preventDefault();
+    console.log('Drop on draggable area');
     const data = e.dataTransfer.getData('text/plain');
     if (draggedElement && draggedElement.classList.contains('dropped-item')) {
         const originalDay = draggedElement.closest('.day');
         if (originalDay) {
             const originalDate = originalDay.dataset.date;
+            console.log(`Removing ${data} from ${originalDate}`);
             database.ref(`calendarData/${originalDate}/${data}`).remove();
         }
     }
 }
 
+console.log('Attaching event listeners to draggable items');
 const draggableItems = document.querySelectorAll('.draggable');
 draggableItems.forEach(item => {
     item.addEventListener('dragstart', handleDragStart);
     item.addEventListener('dragend', handleDragEnd);
 });
 
+console.log('Attaching dragover and drop listeners to draggable area');
 draggableArea.addEventListener('dragover', (e) => e.preventDefault());
 draggableArea.addEventListener('drop', handleDraggableAreaDrop);
 
+console.log('Attaching navigation button listeners');
 prevMonth.addEventListener('click', () => {
+    console.log('Previous month clicked');
     currentDate.setMonth(currentDate.getMonth() - 1);
     generateCalendar(currentDate);
 });
 
 nextMonth.addEventListener('click', () => {
+    console.log('Next month clicked');
     currentDate.setMonth(currentDate.getMonth() + 1);
     generateCalendar(currentDate);
 });
