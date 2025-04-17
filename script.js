@@ -1,13 +1,12 @@
-// Firebase configuration (replace with your config from Firebase Console)
 const firebaseConfig = {
-  apiKey: "AIzaSyB6S8jxJMS1z6p6y2bILpWyi9k_v2GFCHo",
-  authDomain: "teamcalendar-9573b.firebaseapp.com",
-  projectId: "teamcalendar-9573b",
-  storageBucket: "teamcalendar-9573b.firebasestorage.app",
-  messagingSenderId: "862004744286",
-  appId: "1:862004744286:web:3c7ce1e9ec8ed4f9bbe4cf"
+    apiKey: "AIzaSyB6S8jxJMS1z6p6y2bILpWyi9k_v2GFCHo",
+    authDomain: "teamcalendar-9573b.firebaseapp.com",
+    databaseURL: "https://teamcalendar-9573b.firebaseio.com",
+    projectId: "teamcalendar-9573b",
+    storageBucket: "teamcalendar-9573b.firebasestorage.app",
+    messagingSenderId: "862004744286",
+    appId: "1:862004744286:web:3c7ce1e9ec8ed4f9bbe4cf"
 };
-
 
 // Debug: Confirm Firebase is loaded
 console.log('Firebase SDK loaded:', typeof firebase !== 'undefined' ? 'Yes' : 'No');
@@ -15,47 +14,19 @@ console.log('Firebase SDK loaded:', typeof firebase !== 'undefined' ? 'Yes' : 'N
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
-const auth = firebase.auth();
 
 const calendar = document.getElementById('calendar');
 const monthYear = document.getElementById('monthYear');
 const prevMonth = document.getElementById('prevMonth');
 const nextMonth = document.getElementById('nextMonth');
 const draggableArea = document.getElementById('draggable-area');
-const signInBtn = document.getElementById('signInBtn');
-const userInfo = document.getElementById('userInfo');
 let currentDate = new Date();
 let calendarData = {};
 let draggedElement = null;
-let currentUser = null;
 
-// Authentication
-auth.onAuthStateChanged(user => {
-    console.log('Auth state changed:', user);
-    if (user) {
-        currentUser = user;
-        userInfo.textContent = `Signed in as: ${user.displayName}`;
-        signInBtn.textContent = 'Sign Out';
-        initializeCalendarData();
-        listenForCalendarData();
-    } else {
-        currentUser = null;
-        userInfo.textContent = 'Please sign in to edit the calendar.';
-        signInBtn.textContent = 'Sign in with Google';
-        calendar.innerHTML = '<p>Sign in to view and edit the calendar.</p>';
-    }
-});
-
-signInBtn.addEventListener('click', () => {
-    if (currentUser) {
-        auth.signOut();
-    } else {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        auth.signInWithPopup(provider).catch(error => {
-            console.error('Sign-in error:', error);
-        });
-    }
-});
+// Initialize calendar and database listeners on page load
+initializeCalendarData();
+listenForCalendarData();
 
 function listenForCalendarData() {
     console.log('Listening for calendar data');
@@ -134,7 +105,6 @@ function getScheduledDays(month, item) {
 }
 
 function initializeCalendarData() {
-    if (!currentUser) return;
     database.ref('calendarData').once('value').then(snapshot => {
         console.log('Initializing calendar data, snapshot exists:', snapshot.exists());
         if (!snapshot.exists()) {
@@ -188,8 +158,14 @@ function initializeCalendarData() {
                 }
             }
 
-            database.ref('calendarData').set(initialData);
+            database.ref('calendarData').set(initialData).then(() => {
+                console.log('Initial data set successfully');
+            }).catch(error => {
+                console.error('Error setting initial data:', error);
+            });
         }
+    }).catch(error => {
+        console.error('Error initializing calendar data:', error);
     });
 }
 
@@ -301,11 +277,6 @@ function createDroppedItem(text) {
 }
 
 function handleDragStart(e) {
-    if (!currentUser) {
-        e.preventDefault();
-        alert('Please sign in to edit the calendar.');
-        return;
-    }
     draggedElement = e.target;
     e.dataTransfer.setData('text/plain', e.target.textContent);
     e.target.classList.add('dragging');
@@ -318,8 +289,6 @@ function handleDragEnd(e) {
 
 function handleDrop(e) {
     e.preventDefault();
-    if (!currentUser) return;
-
     const data = e.dataTransfer.getData('text/plain');
     const targetDay = e.target.classList.contains('day') ? e.target : e.target.closest('.day');
     if (!targetDay) return;
@@ -345,8 +314,6 @@ function handleDrop(e) {
 
 function handleDraggableAreaDrop(e) {
     e.preventDefault();
-    if (!currentUser) return;
-
     const data = e.dataTransfer.getData('text/plain');
     if (draggedElement && draggedElement.classList.contains('dropped-item')) {
         const originalDay = draggedElement.closest('.day');
