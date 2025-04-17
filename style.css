@@ -63,6 +63,8 @@ body {
     gap: 2px;
     background: #ddd;
     padding: 10px;
+    border: 2px solid red; /* Debug border */
+    min-height: 400px; /* Ensure visibility */
 }
 
 .day {
