@@ -1,15 +1,16 @@
 // Firebase configuration (replace with your config from Firebase Console)
 const firebaseConfig = {
-    // REPLACE THIS WITH YOUR FIREBASE CONFIG
-    // Example:
-    // apiKey: "YOUR_API_KEY",
-    // authDomain: "your-project-id.firebaseapp.com",
-    // databaseURL: "https://your-project-id.firebaseio.com",
-    // projectId: "your-project-id",
-    // storageBucket: "your-project-id.appspot.com",
-    // messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    // appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyB6S8jxJMS1z6p6y2bILpWyi9k_v2GFCHo",
+  authDomain: "teamcalendar-9573b.firebaseapp.com",
+  projectId: "teamcalendar-9573b",
+  storageBucket: "teamcalendar-9573b.firebasestorage.app",
+  messagingSenderId: "862004744286",
+  appId: "1:862004744286:web:3c7ce1e9ec8ed4f9bbe4cf"
 };
+
+
+// Debug: Confirm Firebase is loaded
+console.log('Firebase SDK loaded:', typeof firebase !== 'undefined' ? 'Yes' : 'No');
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
@@ -30,6 +31,7 @@ let currentUser = null;
 
 // Authentication
 auth.onAuthStateChanged(user => {
+    console.log('Auth state changed:', user);
     if (user) {
         currentUser = user;
         userInfo.textContent = `Signed in as: ${user.displayName}`;
@@ -56,7 +58,9 @@ signInBtn.addEventListener('click', () => {
 });
 
 function listenForCalendarData() {
+    console.log('Listening for calendar data');
     database.ref('calendarData').on('value', snapshot => {
+        console.log('Database snapshot:', snapshot.val());
         calendarData = snapshot.val() || {};
         generateCalendar(currentDate);
     });
@@ -132,6 +136,7 @@ function getScheduledDays(month, item) {
 function initializeCalendarData() {
     if (!currentUser) return;
     database.ref('calendarData').once('value').then(snapshot => {
+        console.log('Initializing calendar data, snapshot exists:', snapshot.exists());
         if (!snapshot.exists()) {
             const year = currentDate.getFullYear();
             const items = ['Victoria AWA', 'Ivory AWA', 'Jasmine AWA', 'Rachel AWA'];
@@ -189,93 +194,99 @@ function initializeCalendarData() {
 }
 
 function generateCalendar(date) {
+    console.log('Generating calendar for:', date);
     calendar.innerHTML = '';
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    
-    monthYear.textContent = date.toLocaleString('default', { 
-        month: 'long', 
-        year: 'numeric' 
-    });
-
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    days.forEach(day => {
-        const dayHeader = document.createElement('div');
-        dayHeader.className = 'day-header';
-        dayHeader.textContent = day;
-        calendar.appendChild(dayHeader);
-    });
-
-    const firstDayOfMonth = new Date(year, month, 1);
-    const firstDayIndex = firstDayOfMonth.getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const prevYear = month === 0 ? year - 1 : year;
-    const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
-    for (let i = 0; i < firstDayIndex; i++) {
-        const dayNum = daysInPrevMonth - firstDayIndex + i + 1;
-        const day = document.createElement('div');
-        day.className = 'day';
-        day.style.background = '#f0f0f0';
-        day.innerHTML = `<div>${dayNum}</div>`;
-        day.dataset.date = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    try {
+        const year = date.getFullYear();
+        const month = date.getMonth();
         
-        const dateKey = day.dataset.date;
-        if (calendarData[dateKey]) {
-            Object.keys(calendarData[dateKey]).forEach(itemText => {
-                const droppedItem = createDroppedItem(itemText);
-                day.appendChild(droppedItem);
-            });
+        monthYear.textContent = date.toLocaleString('default', { 
+            month: 'long', 
+            year: 'numeric' 
+        });
+
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        days.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'day-header';
+            dayHeader.textContent = day;
+            calendar.appendChild(dayHeader);
+        });
+
+        const firstDayOfMonth = new Date(year, month, 1);
+        const firstDayIndex = firstDayOfMonth.getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        const prevMonth = month === 0 ? 11 : month - 1;
+        const prevYear = month === 0 ? year - 1 : year;
+        const daysInPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+        for (let i = 0; i < firstDayIndex; i++) {
+            const dayNum = daysInPrevMonth - firstDayIndex + i + 1;
+            const day = document.createElement('div');
+            day.className = 'day';
+            day.style.background = '#f0f0f0';
+            day.innerHTML = `<div>${dayNum}</div>`;
+            day.dataset.date = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+            
+            const dateKey = day.dataset.date;
+            if (calendarData[dateKey]) {
+                Object.keys(calendarData[dateKey]).forEach(itemText => {
+                    const droppedItem = createDroppedItem(itemText);
+                    day.appendChild(droppedItem);
+                });
+            }
+
+            day.addEventListener('dragover', (e) => e.preventDefault());
+            day.addEventListener('drop', handleDrop);
+            calendar.appendChild(day);
         }
 
-        day.addEventListener('dragover', (e) => e.preventDefault());
-        day.addEventListener('drop', handleDrop);
-        calendar.appendChild(day);
-    }
+        for (let i = 1; i <= daysInMonth; i++) {
+            const day = document.createElement('div');
+            day.className = 'day';
+            day.innerHTML = `<div>${i}</div>`;
+            day.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            
+            const dateKey = day.dataset.date;
+            if (calendarData[dateKey]) {
+                Object.keys(calendarData[dateKey]).forEach(itemText => {
+                    const droppedItem = createDroppedItem(itemText);
+                    day.appendChild(droppedItem);
+                });
+            }
 
-    for (let i = 1; i <= daysInMonth; i++) {
-        const day = document.createElement('div');
-        day.className = 'day';
-        day.innerHTML = `<div>${i}</div>`;
-        day.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        
-        const dateKey = day.dataset.date;
-        if (calendarData[dateKey]) {
-            Object.keys(calendarData[dateKey]).forEach(itemText => {
-                const droppedItem = createDroppedItem(itemText);
-                day.appendChild(droppedItem);
-            });
+            day.addEventListener('dragover', (e) => e.preventDefault());
+            day.addEventListener('drop', handleDrop);
+            calendar.appendChild(day);
         }
 
-        day.addEventListener('dragover', (e) => e.preventDefault());
-        day.addEventListener('drop', handleDrop);
-        calendar.appendChild(day);
-    }
+        const totalCells = firstDayIndex + daysInMonth;
+        const remainingCells = (7 - (totalCells % 7)) % 7;
+        const nextMonthNum = month === 11 ? 0 : month + 1;
+        const nextYear = month === 11 ? year + 1 : year;
 
-    const totalCells = firstDayIndex + daysInMonth;
-    const remainingCells = (7 - (totalCells % 7)) % 7;
-    const nextMonthNum = month === 11 ? 0 : month + 1;
-    const nextYear = month === 11 ? year + 1 : year;
+        for (let i = 1; i <= remainingCells; i++) {
+            const day = document.createElement('div');
+            day.className = 'day';
+            day.style.background = '#f0f0f0';
+            day.innerHTML = `<div>${i}</div>`;
+            day.dataset.date = `${nextYear}-${String(nextMonthNum + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            
+            const dateKey = day.dataset.date;
+            if (calendarData[dateKey]) {
+                Object.keys(calendarData[dateKey]).forEach(itemText => {
+                    const droppedItem = createDroppedItem(itemText);
+                    day.appendChild(droppedItem);
+                });
+            }
 
-    for (let i = 1; i <= remainingCells; i++) {
-        const day = document.createElement('div');
-        day.className = 'day';
-        day.style.background = '#f0f0f0';
-        day.innerHTML = `<div>${i}</div>`;
-        day.dataset.date = `${nextYear}-${String(nextMonthNum + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-        
-        const dateKey = day.dataset.date;
-        if (calendarData[dateKey]) {
-            Object.keys(calendarData[dateKey]).forEach(itemText => {
-                const droppedItem = createDroppedItem(itemText);
-                day.appendChild(droppedItem);
-            });
+            day.addEventListener('dragover', (e) => e.preventDefault());
+            day.addEventListener('drop', handleDrop);
+            calendar.appendChild(day);
         }
-
-        day.addEventListener('dragover', (e) => e.preventDefault());
-        day.addEventListener('drop', handleDrop);
-        calendar.appendChild(day);
+    } catch (error) {
+        console.error('Calendar generation error:', error);
+        calendar.innerHTML = '<p>Error loading calendar. Please try again later.</p>';
     }
 }
 
