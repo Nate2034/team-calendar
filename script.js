@@ -1,7 +1,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSyB6S8jxJMS1z6p6y2bILpWyi9k_v2GFCHo",
     authDomain: "teamcalendar-9573b.firebaseapp.com",
-    databaseURL: "https://teamcalendar-9573b.firebaseio.com",
+    databaseURL: "https://teamcalendar-9573b-default-rtdb.firebaseio.com",
     projectId: "teamcalendar-9573b",
     storageBucket: "teamcalendar-9573b.firebasestorage.app",
     messagingSenderId: "862004744286",
@@ -17,8 +17,17 @@ try {
     console.log('Firebase initialized successfully');
 } catch (error) {
     console.error('Firebase initialization error:', error);
+    document.getElementById('calendar').innerHTML = '<p>Error connecting to Firebase. Please try again later.</p>';
 }
 const database = firebase.database();
+
+// Test write to verify database access
+console.log('Performing test write to database');
+database.ref('test').set({ initialized: true }).then(() => {
+    console.log('Test write successful');
+}).catch(error => {
+    console.error('Test write error:', error);
+});
 
 const calendar = document.getElementById('calendar');
 const monthYear = document.getElementById('monthYear');
@@ -29,7 +38,7 @@ let currentDate = new Date();
 let calendarData = {};
 let draggedElement = null;
 
-// Initialize calendar and database listeners on page load
+// Initialize calendar and database listeners
 initializeCalendarData();
 listenForCalendarData();
 
@@ -52,155 +61,56 @@ function listenForCalendarData() {
     }
 }
 
-function getScheduledDays(month, item) {
-    console.log('Getting scheduled days for:', item, 'month:', month);
-    const monthMod = month % 12;
-    switch (item) {
-        case 'Victoria AWA':
-            switch (monthMod) {
-                case 3: return [4, 5]; // Apr: Thu, Fri
-                case 4: return [1, 2]; // May: Mon, Tue
-                case 5: return [2, 3]; // Jun: Tue, Wed
-                case 6: return [3, 4]; // Jul: Wed, Thu
-                case 7: return [4, 5]; // Aug: Thu, Fri
-                case 8: return [1, 2]; // Sep: Mon, Tue
-                case 9: return [2, 3]; // Oct: Tue, Wed
-                case 10: return [3, 4]; // Nov: Wed, Thu
-                case 11: return [4, 5]; // Dec: Thu, Fri
-                case 0: return [1, 2]; // Jan: Mon, Tue
-                case 1: return [2, 3]; // Feb: Tue, Wed
-                case 2: return [3, 4]; // Mar: Wed, Thu
-            }
-        case 'Ivory AWA':
-            switch (monthMod) {
-                case 3: return [3, 4]; // Apr: Wed, Thu
-                case 4: return [4, 5]; // May: Thu, Fri
-                case 5: return [1, 2]; // Jun: Mon, Tue
-                case 6: return [2, 3]; // Jul: Tue, Wed
-                case 7: return [3, 4]; // Aug: Wed, Thu
-                case 8: return [4, 5]; // Sep: Thu, Fri
-                case 9: return [1, 2]; // Oct: Mon, Tue
-                case 10: return [2, 3]; // Nov: Tue, Wed
-                case 11: return [3, 4]; // Dec: Wed, Thu
-                case 0: return [4, 5]; // Jan: Thu, Fri
-                case 1: return [1, 2]; // Feb: Mon, Tue
-                case 2: return [2, 3]; // Mar: Tue, Wed
-            }
-        case 'Jasmine AWA':
-            switch (monthMod) {
-                case 3: return [1, 2]; // Apr: Mon, Tue
-                case 4: return [2, 3]; // May: Tue, Wed
-                case 5: return [3, 4]; // Jun: Wed, Thu
-                case 6: return [4, 5]; // Jul: Thu, Fri
-                case 7: return [1, 2]; // Aug: Mon, Tue
-                case 8: return [2, 3]; // Sep: Tue, Wed
-                case 9: return [3, 4]; // Oct: Wed, Thu
-                case 10: return [4, 5]; // Nov: Thu, Fri
-                case 11: return [1, 2]; // Dec: Mon, Tue
-                case 0: return [2, 3]; // Jan: Tue, Wed
-                case 1: return [3, 4]; // Feb: Wed, Thu
-                case 2: return [4, 5]; // Mar: Thu, Fri
-            }
-        case 'Rachel AWA':
-            switch (monthMod) {
-                case 3: return [2, 3]; // Apr: Tue, Wed
-                case 4: return [3, 4]; // May: Wed, Thu
-                case 5: return [4, 5]; // Jun: Thu, Fri
-                case 6: return [1, 2]; // Jul: Mon, Tue
-                case 7: return [2, 3]; // Aug: Tue, Wed
-                case 8: return [3, 4]; // Sep: Wed, Thu
-                case 9: return [4, 5]; // Oct: Thu, Fri
-                case 10: return [1, 2]; // Nov: Mon, Tue
-                case 11: return [2, 3]; // Dec: Tue, Wed
-                case 0: return [3, 4]; // Jan: Wed, Thu
-                case 1: return [4, 5]; // Feb: Thu, Fri
-                case 2: return [1, 2]; // Mar: Mon, Tue
-            }
-    }
-    return [];
-}
-
-function initializeCalendarData(attempt = 1, maxAttempts = 3) {
+function initializeCalendarData(attempt = 1, maxAttempts = 5) {
     console.log(`Initializing calendar data, attempt ${attempt} of ${maxAttempts}`);
-    database.ref('calendarData').once('value').then(snapshot => {
-        console.log('Snapshot exists:', snapshot.exists());
-        if (!snapshot.exists()) {
-            console.log('No calendar data found, populating initial data');
-            const year = currentDate.getFullYear();
-            const items = ['Victoria AWA', 'Ivory AWA', 'Jasmine AWA', 'Rachel AWA'];
-            let initialData = {};
-
-            for (let month = 0; month < 12; month++) {
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const lastDay = new Date(year, month, daysInMonth);
-                const lastDayOfWeek = lastDay.getDay();
-                const daysToLastSaturday = (6 - lastDayOfWeek + 7) % 7;
-                const lastFullWeekEnd = daysInMonth - lastDayOfWeek - (daysToLastSaturday > 0 ? 7 : 0);
-                const nextMonth = month === 11 ? 0 : month + 1;
-                const nextYear = month === 11 ? year + 1 : year;
-
-                for (let i = 1; i <= lastFullWeekEnd; i++) {
-                    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                    const currentDateObj = new Date(year, month, i);
-                    const currentDayOfWeek = currentDateObj.getDay();
-
-                    items.forEach(item => {
-                        const scheduledDays = getScheduledDays(month, item);
-                        if (scheduledDays.includes(currentDayOfWeek)) {
-                            if (!initialData[dateKey]) initialData[dateKey] = {};
-                            initialData[dateKey][item] = true;
-                        }
-                    });
-                }
-
-                const followingWeekStart = lastFullWeekEnd + 1;
-                for (let i = followingWeekStart; i <= daysInMonth + daysToLastSaturday; i++) {
-                    let dateKey, currentDateObj, currentDayOfWeek;
-                    if (i <= daysInMonth) {
-                        dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                        currentDateObj = new Date(year, month, i);
-                    } else {
-                        const spilloverDay = i - daysInMonth;
-                        dateKey = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(spilloverDay).padStart(2, '0')}`;
-                        currentDateObj = new Date(nextYear, nextMonth, spilloverDay);
+    // Clear existing data to ensure clean state
+    database.ref('calendarData').remove().then(() => {
+        console.log('Cleared existing calendar data');
+        database.ref('calendarData').once('value').then(snapshot => {
+            console.log('Snapshot exists:', snapshot.exists());
+            if (!snapshot.exists()) {
+                console.log('No calendar data found, populating test data');
+                const initialData = {
+                    '2025-04-01': {
+                        'Victoria AWA': true
                     }
-                    currentDayOfWeek = currentDateObj.getDay();
-
-                    items.forEach(item => {
-                        const scheduledDays = getScheduledDays(nextMonth, item);
-                        if (scheduledDays.includes(currentDayOfWeek)) {
-                            if (!initialData[dateKey]) initialData[dateKey] = {};
-                            initialData[dateKey][item] = true;
-                        }
-                    });
-                }
+                };
+                console.log('Setting initial data:', initialData);
+                database.ref('calendarData').set(initialData).then(() => {
+                    console.log('Initial data set successfully');
+                }).catch(error => {
+                    console.error('Error setting initial data:', error);
+                    if (attempt < maxAttempts) {
+                        console.log(`Retrying initialization, attempt ${attempt + 1}`);
+                        setTimeout(() => initializeCalendarData(attempt + 1, maxAttempts), 2000);
+                    } else {
+                        console.error('Max initialization attempts reached');
+                        calendar.innerHTML = '<p>Failed to initialize calendar data. Please try again later.</p>';
+                        generateCalendar(currentDate); // Fallback: Render empty calendar
+                    }
+                });
+            } else {
+                console.log('Calendar data already exists, skipping initialization');
             }
-
-            console.log('Setting initial data:', initialData);
-            database.ref('calendarData').set(initialData).then(() => {
-                console.log('Initial data set successfully');
-            }).catch(error => {
-                console.error('Error setting initial data:', error);
-                if (attempt < maxAttempts) {
-                    console.log(`Retrying initialization, attempt ${attempt + 1}`);
-                    setTimeout(() => initializeCalendarData(attempt + 1, maxAttempts), 2000);
-                } else {
-                    console.error('Max initialization attempts reached');
-                    calendar.innerHTML = '<p>Failed to initialize calendar data. Please try again later.</p>';
-                    generateCalendar(currentDate); // Fallback: Render empty calendar
-                }
-            });
-        } else {
-            console.log('Calendar data already exists, skipping initialization');
-        }
+        }).catch(error => {
+            console.error('Error checking calendar data:', error);
+            if (attempt < maxAttempts) {
+                console.log(`Retrying initialization, attempt ${attempt + 1}`);
+                setTimeout(() => initializeCalendarData(attempt + 1, maxAttempts), 2000);
+            } else {
+                console.error('Max initialization attempts reached');
+                calendar.innerHTML = '<p>Failed to connect to database. Please try again later.</p>';
+                generateCalendar(currentDate); // Fallback: Render empty calendar
+            }
+        });
     }).catch(error => {
-        console.error('Error checking calendar data:', error);
+        console.error('Error clearing calendar data:', error);
         if (attempt < maxAttempts) {
             console.log(`Retrying initialization, attempt ${attempt + 1}`);
             setTimeout(() => initializeCalendarData(attempt + 1, maxAttempts), 2000);
         } else {
             console.error('Max initialization attempts reached');
-            calendar.innerHTML = '<p>Failed to connect to database. Please try again later.</p>';
+            calendar.innerHTML = '<p>Failed to clear calendar data. Please try again later.</p>';
             generateCalendar(currentDate); // Fallback: Render empty calendar
         }
     });
@@ -306,7 +216,7 @@ function generateCalendar(date) {
             calendar.appendChild(day);
         }
 
-        console.log('Calendar rendering complete');
+        console.log('Calendar rendering complete, children:', calendar.children.length);
     } catch (error) {
         console.error('Calendar generation error:', error);
         calendar.innerHTML = '<p>Error rendering calendar. Please try again later.</p>';
