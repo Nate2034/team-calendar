@@ -4,16 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
-    <!-- Optional: Suppress favicon 404 error -->
+
     <link rel="icon" href="data:,">
     <title>Admin Ops Team Calendar</title>
 </head>
 <body>
     <div class="container">
-        <div id="auth-area">
-            <button id="signInBtn">Sign in with Google</button>
-            <div id="userInfo"></div>
-        </div>
         <div id="draggable-area">
             <div class="draggable" draggable="true">Victoria AWA</div>
             <div class="draggable" draggable="true">Victoria PPL</div>
@@ -40,9 +36,8 @@
 
         <div id="calendar"></div>
     </div>
-    <!-- Firebase SDK Compatibility Scripts (v9.6.0) -->
+
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
     <script src="script.js"></script>
 </body>
